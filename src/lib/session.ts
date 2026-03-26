@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { headers } from 'next/headers';
 import { createHmac } from 'crypto';
 
 const SECRET = process.env.SESSION_SECRET ?? 'dev-secret-change-in-production';
@@ -34,6 +35,15 @@ export function decodeSession(token: string): SessionData | null {
 }
 
 export async function getSession(): Promise<SessionData | null> {
+  // Support Bearer token for mobile clients
+  const headerList = await headers();
+  const authHeader = headerList.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const session = decodeSession(token);
+    if (session) return session;
+  }
+
   const jar = await cookies();
   const token = jar.get(COOKIE_NAME)?.value;
   if (!token) return null;
