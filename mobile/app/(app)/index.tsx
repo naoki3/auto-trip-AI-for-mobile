@@ -12,41 +12,34 @@ import {
 import { useRouter } from 'expo-router';
 import { apiGetTrips, Trip } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
+import { useI18n } from '@/lib/I18nContext';
+import { TranslationKey } from '@/lib/i18n';
 
 function TripItem({ trip, onPress }: { trip: Trip; onPress: () => void }) {
-  const date = new Date(trip.created_at).toLocaleDateString('ja-JP');
+  const { t, lang } = useI18n();
+  const date = new Date(trip.created_at).toLocaleDateString(lang === 'ja' ? 'ja-JP' : 'en-US');
+  const transportKey = `transport_${trip.main_transport}` as TranslationKey;
+  const luggageKey = `luggage_${trip.luggage_level}` as TranslationKey;
+  const daysLabel = lang === 'ja'
+    ? `${trip.days}${t('daysUnit')}`
+    : `${trip.days}${t('daysUnit')}`;
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
       <Text style={styles.cardTitle}>
         {trip.origin} → {trip.destination}
       </Text>
       <Text style={styles.cardSub}>
-        {trip.days}日間 · {transportLabel(trip.main_transport)} · {luggageLabel(trip.luggage_level)}
+        {daysLabel} · {t(transportKey)} · {t(luggageKey)}
       </Text>
       <Text style={styles.cardDate}>{date}</Text>
     </TouchableOpacity>
   );
 }
 
-function transportLabel(v: string) {
-  const map: Record<string, string> = {
-    shinkansen: '新幹線',
-    local_train: '在来線',
-    bus: 'バス',
-    car: '車',
-    flight: '飛行機',
-    undecided: '未定',
-  };
-  return map[v] ?? v;
-}
-
-function luggageLabel(v: string) {
-  const map: Record<string, string> = { light: '軽め', normal: '普通', heavy: '重め' };
-  return map[v] ?? v;
-}
-
 export default function HomeScreen() {
   const { auth, signOut } = useAuth();
+  const { t, lang, setLang } = useI18n();
   const router = useRouter();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +50,7 @@ export default function HomeScreen() {
       const { trips: data } = await apiGetTrips();
       setTrips(data);
     } catch (e) {
-      Alert.alert('エラー', e instanceof Error ? e.message : 'データの取得に失敗しました');
+      Alert.alert(t('error'), e instanceof Error ? e.message : t('errorFetch'));
     }
   }, []);
 
@@ -69,10 +62,6 @@ export default function HomeScreen() {
     setRefreshing(true);
     await fetchTrips();
     setRefreshing(false);
-  }
-
-  async function handleSignOut() {
-    await signOut();
   }
 
   if (loading) {
@@ -89,9 +78,17 @@ export default function HomeScreen() {
         <Text style={styles.headerTitle}>Auto Trip AI</Text>
         <View style={styles.headerRight}>
           <Text style={styles.username}>{auth?.username}</Text>
-          <TouchableOpacity onPress={handleSignOut}>
-            <Text style={styles.logout}>ログアウト</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.langToggle}
+              onPress={() => setLang(lang === 'ja' ? 'en' : 'ja')}
+            >
+              <Text style={styles.langToggleText}>{lang === 'ja' ? 'EN' : 'JA'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => signOut()}>
+              <Text style={styles.logout}>{t('logout')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -108,8 +105,8 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>旅行プランがありません</Text>
-            <Text style={styles.emptySubText}>下のボタンから新しい旅行を作成してください</Text>
+            <Text style={styles.emptyText}>{t('noTrips')}</Text>
+            <Text style={styles.emptySubText}>{t('noTripsHint')}</Text>
           </View>
         }
       />
@@ -118,7 +115,7 @@ export default function HomeScreen() {
         style={styles.fab}
         onPress={() => router.push('/(app)/trips/new')}
       >
-        <Text style={styles.fabText}>＋ 新しい旅行</Text>
+        <Text style={styles.fabText}>{t('newTrip')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -138,8 +135,17 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 22, fontWeight: '800', color: '#fff' },
   headerRight: { alignItems: 'flex-end' },
-  username: { color: '#93c5fd', fontSize: 12 },
-  logout: { color: '#fff', fontSize: 13, marginTop: 2 },
+  username: { color: '#93c5fd', fontSize: 12, marginBottom: 4 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  langToggle: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  langToggleText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  logout: { color: '#fff', fontSize: 13 },
   list: { padding: 16 },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   empty: { alignItems: 'center' },

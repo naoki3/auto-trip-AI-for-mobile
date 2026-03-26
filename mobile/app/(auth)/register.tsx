@@ -13,20 +13,22 @@ import {
 import { Link } from 'expo-router';
 import { apiRegister } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
+import { useI18n } from '@/lib/I18nContext';
 
 export default function RegisterScreen() {
   const { signIn } = useAuth();
+  const { t } = useI18n();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleRegister() {
     if (username.trim().length < 2) {
-      Alert.alert('エラー', 'ユーザー名は2文字以上で入力してください');
+      Alert.alert(t('error'), t('errorUsernameLength'));
       return;
     }
     if (password.length < 4) {
-      Alert.alert('エラー', 'パスワードは4文字以上で入力してください');
+      Alert.alert(t('error'), t('errorPasswordLength'));
       return;
     }
     setLoading(true);
@@ -34,7 +36,7 @@ export default function RegisterScreen() {
       const result = await apiRegister(username.trim(), password);
       await signIn(result);
     } catch (e) {
-      Alert.alert('登録失敗', e instanceof Error ? e.message : 'エラーが発生しました');
+      Alert.alert(t('errorRegister'), e instanceof Error ? e.message : t('errorOccurred'));
     } finally {
       setLoading(false);
     }
@@ -46,11 +48,11 @@ export default function RegisterScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.inner}>
-        <Text style={styles.title}>アカウント作成</Text>
+        <Text style={styles.title}>{t('registerTitle')}</Text>
 
         <TextInput
           style={styles.input}
-          placeholder="ユーザー名（2文字以上）"
+          placeholder={t('usernamePlaceholder')}
           autoCapitalize="none"
           autoCorrect={false}
           value={username}
@@ -58,7 +60,7 @@ export default function RegisterScreen() {
         />
         <TextInput
           style={styles.input}
-          placeholder="パスワード（4文字以上）"
+          placeholder={t('passwordPlaceholder')}
           secureTextEntry
           value={password}
           onChangeText={setPassword}
@@ -69,12 +71,12 @@ export default function RegisterScreen() {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>登録する</Text>
+            <Text style={styles.buttonText}>{t('register')}</Text>
           )}
         </TouchableOpacity>
 
         <Link href="/(auth)/login" style={styles.link}>
-          ログインに戻る
+          {t('backToLogin')}
         </Link>
       </View>
     </KeyboardAvoidingView>

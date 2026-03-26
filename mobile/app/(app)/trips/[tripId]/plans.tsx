@@ -10,13 +10,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { apiGetPlans, apiGeneratePlans, apiGetTrip, Plan, Trip } from '@/lib/api';
-
-const PLAN_TYPE_LABELS: Record<string, string> = {
-  fastest: '⚡ 最速',
-  cheapest: '💰 最安',
-  relaxed: '😌 ゆったり',
-  sightseeing: '📸 観光重視',
-};
+import { useI18n } from '@/lib/I18nContext';
+import { TranslationKey } from '@/lib/i18n';
 
 const PLAN_TYPE_COLORS: Record<string, string> = {
   fastest: '#0ea5e9',
@@ -26,20 +21,23 @@ const PLAN_TYPE_COLORS: Record<string, string> = {
 };
 
 function PlanCard({ plan, onPress }: { plan: Plan; onPress: () => void }) {
+  const { t } = useI18n();
   const color = PLAN_TYPE_COLORS[plan.plan_type] ?? '#1e40af';
+  const labelKey = `plan_${plan.plan_type}` as TranslationKey;
+
   return (
     <TouchableOpacity style={[styles.card, { borderLeftColor: color }]} onPress={onPress}>
-      <Text style={[styles.planType, { color }]}>{PLAN_TYPE_LABELS[plan.plan_type] ?? plan.plan_type}</Text>
+      <Text style={[styles.planType, { color }]}>{t(labelKey)}</Text>
       {plan.summary && <Text style={styles.summary} numberOfLines={3}>{plan.summary}</Text>}
       <View style={styles.metrics}>
         {plan.estimated_cost != null && (
           <Text style={styles.metric}>¥{plan.estimated_cost.toLocaleString()}</Text>
         )}
         {plan.transfer_count != null && (
-          <Text style={styles.metric}>乗換 {plan.transfer_count}回</Text>
+          <Text style={styles.metric}>{t('transfers')} {plan.transfer_count}{t('transfersUnit')}</Text>
         )}
         {plan.walking_score != null && (
-          <Text style={styles.metric}>歩き {plan.walking_score}/10</Text>
+          <Text style={styles.metric}>{t('walkingScore')} {plan.walking_score}/10</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -49,6 +47,7 @@ function PlanCard({ plan, onPress }: { plan: Plan; onPress: () => void }) {
 export default function PlansScreen() {
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
   const router = useRouter();
+  const { t } = useI18n();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +62,7 @@ export default function PlansScreen() {
       setTrip(tripData);
       setPlans(plansData.plans);
     } catch (e) {
-      Alert.alert('エラー', e instanceof Error ? e.message : 'データの取得に失敗しました');
+      Alert.alert(t('error'), e instanceof Error ? e.message : t('errorFetch'));
     }
   }, [tripId]);
 
@@ -77,13 +76,13 @@ export default function PlansScreen() {
       await apiGeneratePlans(tripId);
       await fetchData();
     } catch (e) {
-      Alert.alert('生成失敗', e instanceof Error ? e.message : 'プランの生成に失敗しました');
+      Alert.alert(t('generateFailed'), e instanceof Error ? e.message : t('errorGenerate'));
     } finally {
       setGenerating(false);
     }
   }
 
-  const title = trip ? `${trip.origin} → ${trip.destination}` : 'プラン一覧';
+  const title = trip ? `${trip.origin} → ${trip.destination}` : t('plansTitle');
 
   if (loading) {
     return (
@@ -99,16 +98,16 @@ export default function PlansScreen() {
       <View style={styles.container}>
         {plans.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>プランがまだありません</Text>
-            <Text style={styles.emptySubText}>AIが4つのプランを自動生成します</Text>
+            <Text style={styles.emptyText}>{t('noPlansYet')}</Text>
+            <Text style={styles.emptySubText}>{t('noPlansHint')}</Text>
             <TouchableOpacity style={styles.generateButton} onPress={handleGenerate} disabled={generating}>
               {generating ? (
                 <>
                   <ActivityIndicator color="#fff" size="small" />
-                  <Text style={styles.generateButtonText}>  生成中…（1〜2分かかります）</Text>
+                  <Text style={styles.generateButtonText}>  {t('generating')}</Text>
                 </>
               ) : (
-                <Text style={styles.generateButtonText}>プランを生成する</Text>
+                <Text style={styles.generateButtonText}>{t('generatePlans')}</Text>
               )}
             </TouchableOpacity>
           </View>

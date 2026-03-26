@@ -9,34 +9,21 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Stack } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { apiCreateTrip } from '@/lib/api';
-
-const TRANSPORT_OPTIONS = [
-  { label: '新幹線', value: 'shinkansen' },
-  { label: '在来線', value: 'local_train' },
-  { label: 'バス', value: 'bus' },
-  { label: '車', value: 'car' },
-  { label: '飛行機', value: 'flight' },
-  { label: '未定', value: 'undecided' },
-];
-
-const LUGGAGE_OPTIONS = [
-  { label: '軽め', value: 'light' },
-  { label: '普通', value: 'normal' },
-  { label: '重め', value: 'heavy' },
-];
+import { useI18n } from '@/lib/I18nContext';
+import { TranslationKey } from '@/lib/i18n';
 
 function OptionGroup({
   options,
   selected,
   onSelect,
 }: {
-  options: { label: string; value: string }[];
+  options: { labelKey: TranslationKey; value: string }[];
   selected: string;
   onSelect: (v: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <View style={styles.optionGroup}>
       {options.map((opt) => (
@@ -46,7 +33,7 @@ function OptionGroup({
           onPress={() => onSelect(opt.value)}
         >
           <Text style={[styles.optionText, selected === opt.value && styles.optionTextSelected]}>
-            {opt.label}
+            {t(opt.labelKey)}
           </Text>
         </TouchableOpacity>
       ))}
@@ -54,8 +41,24 @@ function OptionGroup({
   );
 }
 
+const TRANSPORT_OPTIONS: { labelKey: TranslationKey; value: string }[] = [
+  { labelKey: 'transport_shinkansen', value: 'shinkansen' },
+  { labelKey: 'transport_local_train', value: 'local_train' },
+  { labelKey: 'transport_bus', value: 'bus' },
+  { labelKey: 'transport_car', value: 'car' },
+  { labelKey: 'transport_flight', value: 'flight' },
+  { labelKey: 'transport_undecided', value: 'undecided' },
+];
+
+const LUGGAGE_OPTIONS: { labelKey: TranslationKey; value: string }[] = [
+  { labelKey: 'luggage_light', value: 'light' },
+  { labelKey: 'luggage_normal', value: 'normal' },
+  { labelKey: 'luggage_heavy', value: 'heavy' },
+];
+
 export default function NewTripScreen() {
   const router = useRouter();
+  const { t } = useI18n();
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [days, setDays] = useState('2');
@@ -66,12 +69,12 @@ export default function NewTripScreen() {
 
   async function handleCreate() {
     if (!origin.trim() || !destination.trim()) {
-      Alert.alert('エラー', '出発地と目的地を入力してください');
+      Alert.alert(t('error'), t('errorOriginDest'));
       return;
     }
     const daysNum = parseInt(days, 10);
     if (isNaN(daysNum) || daysNum < 1 || daysNum > 14) {
-      Alert.alert('エラー', '日数は1〜14で入力してください');
+      Alert.alert(t('error'), t('errorDaysRange'));
       return;
     }
 
@@ -87,7 +90,7 @@ export default function NewTripScreen() {
       });
       router.replace(`/(app)/trips/${id}/plans`);
     } catch (e) {
-      Alert.alert('エラー', e instanceof Error ? e.message : '作成に失敗しました');
+      Alert.alert(t('error'), e instanceof Error ? e.message : t('errorCreate'));
     } finally {
       setLoading(false);
     }
@@ -95,26 +98,26 @@ export default function NewTripScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: '新しい旅行' }} />
+      <Stack.Screen options={{ title: t('newTripTitle') }} />
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.inner}>
-          <Text style={styles.label}>出発地</Text>
+          <Text style={styles.label}>{t('origin')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="例：東京"
+            placeholder={t('originPlaceholder')}
             value={origin}
             onChangeText={setOrigin}
           />
 
-          <Text style={styles.label}>目的地</Text>
+          <Text style={styles.label}>{t('destination')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="例：京都"
+            placeholder={t('destinationPlaceholder')}
             value={destination}
             onChangeText={setDestination}
           />
 
-          <Text style={styles.label}>日数</Text>
+          <Text style={styles.label}>{t('days')}</Text>
           <TextInput
             style={[styles.input, styles.inputSmall]}
             placeholder="2"
@@ -123,16 +126,16 @@ export default function NewTripScreen() {
             onChangeText={setDays}
           />
 
-          <Text style={styles.label}>主な移動手段</Text>
+          <Text style={styles.label}>{t('mainTransport')}</Text>
           <OptionGroup options={TRANSPORT_OPTIONS} selected={transport} onSelect={setTransport} />
 
-          <Text style={styles.label}>荷物の量</Text>
+          <Text style={styles.label}>{t('luggageAmount')}</Text>
           <OptionGroup options={LUGGAGE_OPTIONS} selected={luggage} onSelect={setLuggage} />
 
-          <Text style={styles.label}>要望・メモ（任意）</Text>
+          <Text style={styles.label}>{t('notesLabel')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="例：朝は遅めに出発したい、グルメ重視で"
+            placeholder={t('notesPlaceholder')}
             multiline
             numberOfLines={4}
             value={note}
@@ -143,7 +146,7 @@ export default function NewTripScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>プランを生成する</Text>
+              <Text style={styles.buttonText}>{t('generatePlans')}</Text>
             )}
           </TouchableOpacity>
         </View>

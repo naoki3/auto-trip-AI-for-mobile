@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { apiGetPlanDetail, apiReplan, PlanDetail, ItineraryDay, ItineraryItem } from '@/lib/api';
+import { useI18n } from '@/lib/I18nContext';
+import { TranslationKey } from '@/lib/i18n';
 
 const ITEM_TYPE_ICONS: Record<string, string> = {
   spot: '📍',
@@ -32,6 +34,7 @@ function TimeRange({ start, end }: { start: string | null; end: string | null })
 }
 
 function ItemRow({ item }: { item: ItineraryItem }) {
+  const { t } = useI18n();
   const icon = ITEM_TYPE_ICONS[item.item_type] ?? '•';
   let metadata: Record<string, unknown> | null = null;
   try {
@@ -51,12 +54,12 @@ function ItemRow({ item }: { item: ItineraryItem }) {
         <Text style={styles.itemTitle}>{item.title}</Text>
         {item.item_type === 'move' && metadata && (
           <Text style={styles.itemMeta}>
-            {String(metadata.method ?? '')} · {String(metadata.duration_minutes ?? '')}分 · ¥{Number(metadata.price ?? 0).toLocaleString()}
+            {String(metadata.method ?? '')} · {String(metadata.duration_minutes ?? '')}min · ¥{Number(metadata.price ?? 0).toLocaleString()}
           </Text>
         )}
         {gmapsUrl && (
           <TouchableOpacity onPress={() => Linking.openURL(gmapsUrl)}>
-            <Text style={styles.mapsLink}>Google Mapsで見る →</Text>
+            <Text style={styles.mapsLink}>{t('openInMaps')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -78,6 +81,7 @@ function DaySection({ day }: { day: ItineraryDay }) {
 export default function PlanDetailScreen() {
   const { tripId, planId } = useLocalSearchParams<{ tripId: string; planId: string }>();
   const router = useRouter();
+  const { t } = useI18n();
   const [plan, setPlan] = useState<PlanDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReplan, setShowReplan] = useState(false);
@@ -89,7 +93,7 @@ export default function PlanDetailScreen() {
       const data = await apiGetPlanDetail(planId);
       setPlan(data);
     } catch (e) {
-      Alert.alert('エラー', e instanceof Error ? e.message : '読み込みに失敗しました');
+      Alert.alert(t('error'), e instanceof Error ? e.message : t('errorLoad'));
     }
   }, [planId]);
 
@@ -99,7 +103,7 @@ export default function PlanDetailScreen() {
 
   async function handleReplan() {
     if (!replanText.trim()) {
-      Alert.alert('エラー', '変更内容を入力してください');
+      Alert.alert(t('error'), t('errorModifyText'));
       return;
     }
     setReplanning(true);
@@ -107,25 +111,22 @@ export default function PlanDetailScreen() {
       const { new_plan_id, result_summary } = await apiReplan(planId, replanText.trim());
       setShowReplan(false);
       setReplanText('');
-      Alert.alert('再プラン完了', result_summary, [
+      Alert.alert(t('replanDone'), result_summary, [
         {
-          text: '新しいプランを見る',
+          text: t('viewNewPlan'),
           onPress: () => router.replace(`/(app)/trips/${tripId}/plan/${new_plan_id}`),
         },
       ]);
     } catch (e) {
-      Alert.alert('失敗', e instanceof Error ? e.message : '再プランに失敗しました');
+      Alert.alert(t('modifyFailed'), e instanceof Error ? e.message : t('errorReplan'));
     } finally {
       setReplanning(false);
     }
   }
 
-  const planTypeLabels: Record<string, string> = {
-    fastest: '⚡ 最速',
-    cheapest: '💰 最安',
-    relaxed: '😌 ゆったり',
-    sightseeing: '📸 観光重視',
-  };
+  const screenTitle = plan
+    ? t(`plan_${plan.plan_type}` as TranslationKey)
+    : '';
 
   if (loading) {
     return (
@@ -139,26 +140,26 @@ export default function PlanDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: planTypeLabels[plan.plan_type] ?? plan.plan_type }} />
+      <Stack.Screen options={{ title: screenTitle }} />
       <ScrollView style={styles.container}>
         {/* Summary metrics */}
         <View style={styles.metricsRow}>
           {plan.estimated_cost != null && (
             <View style={styles.metricCard}>
               <Text style={styles.metricValue}>¥{plan.estimated_cost.toLocaleString()}</Text>
-              <Text style={styles.metricLabel}>費用</Text>
+              <Text style={styles.metricLabel}>{t('cost')}</Text>
             </View>
           )}
           {plan.transfer_count != null && (
             <View style={styles.metricCard}>
               <Text style={styles.metricValue}>{plan.transfer_count}</Text>
-              <Text style={styles.metricLabel}>乗換</Text>
+              <Text style={styles.metricLabel}>{t('transfersLabel')}</Text>
             </View>
           )}
           {plan.walking_score != null && (
             <View style={styles.metricCard}>
               <Text style={styles.metricValue}>{plan.walking_score}/10</Text>
-              <Text style={styles.metricLabel}>歩き度</Text>
+              <Text style={styles.metricLabel}>{t('walkingLabel')}</Text>
             </View>
           )}
         </View>
@@ -178,7 +179,7 @@ export default function PlanDetailScreen() {
 
         {/* Replan button */}
         <TouchableOpacity style={styles.replanButton} onPress={() => setShowReplan(true)}>
-          <Text style={styles.replanButtonText}>✏️ このプランを変更する</Text>
+          <Text style={styles.replanButtonText}>{t('modifyPlan')}</Text>
         </TouchableOpacity>
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -186,11 +187,11 @@ export default function PlanDetailScreen() {
       {/* Replan Modal */}
       <Modal visible={showReplan} animationType="slide" presentationStyle="pageSheet">
         <View style={styles.modal}>
-          <Text style={styles.modalTitle}>プランを変更する</Text>
-          <Text style={styles.modalSubtitle}>変更したい内容を自由に記入してください</Text>
+          <Text style={styles.modalTitle}>{t('replanTitle')}</Text>
+          <Text style={styles.modalSubtitle}>{t('replanSubtitle')}</Text>
           <TextInput
             style={styles.modalInput}
-            placeholder="例：2日目の午後をもっとゆっくりにしたい"
+            placeholder={t('replanPlaceholder')}
             multiline
             numberOfLines={5}
             value={replanText}
@@ -201,14 +202,14 @@ export default function PlanDetailScreen() {
             {replanning ? (
               <>
                 <ActivityIndicator color="#fff" size="small" />
-                <Text style={styles.modalButtonText}>  生成中…</Text>
+                <Text style={styles.modalButtonText}>  {t('replanGenerating')}</Text>
               </>
             ) : (
-              <Text style={styles.modalButtonText}>変更して再生成</Text>
+              <Text style={styles.modalButtonText}>{t('replanSubmit')}</Text>
             )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.modalCancel} onPress={() => setShowReplan(false)}>
-            <Text style={styles.modalCancelText}>キャンセル</Text>
+            <Text style={styles.modalCancelText}>{t('cancel')}</Text>
           </TouchableOpacity>
         </View>
       </Modal>
@@ -219,11 +220,7 @@ export default function PlanDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  metricsRow: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-  },
+  metricsRow: { flexDirection: 'row', padding: 16, gap: 12 },
   metricCard: {
     flex: 1,
     backgroundColor: '#fff',
